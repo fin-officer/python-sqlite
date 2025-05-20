@@ -1,6 +1,7 @@
 .idea
 venv
 .env
+text2sql.db
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

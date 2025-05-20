@@ -248,3 +248,77 @@ Oto kompletna lista plików projektu text2sql w wersji z MCP i TinyLLM. Wszystki
     - Zawiera instrukcje instalacji i uruchomienia
     - Opisuje architekturę i funkcjonalność systemu
 
+
+
+
+### 1. Przygotowanie plików projektu
+
+Upewnij się, że masz następujące pliki w katalogu projektu:
+- `cli_client.py` (uproszczona wersja)
+- `rest_api.py` (uproszczona wersja)
+- `run_text2sql.sh` (uproszczona wersja)
+- `install.sh` (uproszczona wersja)
+
+### 2. Instalacja zależności
+
+Wykonaj poniższe polecenia:
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+Ten skrypt:
+- Zainstaluje wymagane pakiety systemowe
+- Utworzy wirtualne środowisko Python (o ile nie istnieje)
+- Zainstaluje niezbędne zależności Pythona
+- Nada uprawnienia wykonywania skryptom
+
+### 3. Uruchomienie aplikacji
+
+Najpierw aktywuj wirtualne środowisko:
+
+```bash
+source venv/bin/activate
+```
+
+Następnie uruchom aplikację:
+
+```bash
+# Uruchom interaktywny shell
+./run_text2sql.sh shell
+
+# Lub uruchom API REST
+./run_text2sql.sh api
+
+# Lub uruchom oba komponenty naraz
+./run_text2sql.sh all
+```
+
+### 4. Korzystanie z aplikacji
+
+W interaktywnym shellu możesz wprowadzać zapytania w języku naturalnym:
+
+```
+text2sql> create a user named John
+text2sql> show all users
+text2sql> create a product named Laptop price 999.99
+text2sql> show all products
+```
+
+Jeśli uruchomiłeś API REST, możesz korzystać z endpointów:
+- `GET http://localhost:8000/schema` - Pobiera schemat bazy danych
+- `GET http://localhost:8000/examples` - Pobiera przykłady zapytań
+- `POST http://localhost:8000/translate` - Tłumaczy zapytanie w języku naturalnym na SQL
+- `POST http://localhost:8000/query` - Wykonuje zapytanie SQL
+- `POST http://localhost:8000/natural` - Przetwarza zapytanie w języku naturalnym
+
+Dokumentacja API dostępna jest pod adresem: `http://localhost:8000/docs`
+
+### Uwagi:
+
+- Ta uproszczona wersja nie używa MCP ani TinyLLM, więc nie ma problemów z instalacją tych zależności
+- Używa podstawowego mechanizmu tłumaczenia opartego na regułach
+- Obsługuje tylko proste zapytania (tworzenie użytkowników, wyświetlanie wszystkich użytkowników, itp.)
+- Wszystkie dane są przechowywane w lokalnej bazie danych SQLite (`text2sql.db`)
+
