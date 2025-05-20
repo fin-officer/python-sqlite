@@ -164,25 +164,64 @@ class SmartLLM:
             return simple_sql
 
     def _simple_translate(self, query: str) -> str:
-        """Prosty mechanizm tłumaczenia oparty na regułach"""
-        query = query.lower()
+        """Simple rule-based translation mechanism for natural language to SQL"""
+        # Normalize the query
+        query = query.lower().strip()
 
-        # Obsługa zapytań typu CREATE TABLE
-        if "create table" in query:
+        # ============================================================
+        # TABLE LISTING COMMANDS
+        # ============================================================
+        
+        # Handle 'show tables' queries
+        if any(phrase in query.lower() for phrase in ["show tables", "list tables", "display tables", "show all tables", "list all tables"]):
+            return "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+            
+        # Handle 'describe table' or 'show table structure' commands
+        if any(phrase in query for phrase in ["describe table", "show table structure", "table info", "table schema"]):
             words = query.split()
-            table_index = words.index("table")
-
-            if table_index < len(words) - 1:
+            table_name = None
+            
+            # Look for table name after keywords
+            for keyword in ["table", "for"]:
+                if keyword in words and words.index(keyword) < len(words) - 1:
+                    table_name = words[words.index(keyword) + 1]
+                    break
+            
+            if table_name:
+                return f"PRAGMA table_info({table_name});"
+            else:
+                return "-- Could not determine which table to describe"
+        
+        # ============================================================
+        # TABLE CREATION COMMANDS
+        # ============================================================
+        
+        # Handle 'create table' commands
+        if "create table" in query or ("create" in query and "table" in query):
+            words = query.split()
+            table_index = words.index("table") if "table" in words else -1
+            
+            # Find table name
+            table_name = None
+            if table_index >= 0 and table_index < len(words) - 1:
                 table_name = words[table_index + 1]
+            elif "create" in words and words.index("create") < len(words) - 1:
+                # Try to get name after 'create'
+                possible_name = words[words.index("create") + 1]
+                if possible_name != "table" and possible_name != "a" and possible_name != "new":
+                    table_name = possible_name
+            
+            if not table_name:
+                return "-- Could not determine table name from query"
 
-                # Sprawdź, czy określono kolumny
-                columns = []
-                if "with" in words and words.index("with") > table_index:
-                    # Parsuj kolumny po "with"
-                    with_index = words.index("with")
+            # Parse columns if specified with 'with' keyword
+            columns = []
+            if "with" in words:
+                with_index = words.index("with")
+                if with_index < len(words) - 1:
                     column_part = " ".join(words[with_index + 1:])
-
-                    # Sprawdź, czy mamy "and" jako separator
+                    
+                    # Parse columns separated by 'and'
                     if "and" in column_part:
                         column_names = [col.strip() for col in column_part.split("and")]
                         for col in column_names:
@@ -190,49 +229,57 @@ class SmartLLM:
                             if col:
                                 if "email" in col:
                                     columns.append(f"{col} TEXT")
-                                elif "price" in col or "amount" in col or "cost" in col:
+                                elif any(term in col for term in ["price", "amount", "cost", "salary", "budget"]):
                                     columns.append(f"{col} REAL")
-                                elif "date" in col or "time" in col:
+                                elif any(term in col for term in ["date", "time", "created", "updated"]):
                                     columns.append(f"{col} TIMESTAMP")
                                 else:
                                     columns.append(f"{col} TEXT")
-
-                if columns:
-                    column_defs = ", ".join(columns)
-                    return f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
-                        id INTEGER PRIMARY KEY,
-                        {column_defs},
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                    """
-                else:
-                    if "user" in table_name or "users" in table_name:
-                        return f"""
-                        CREATE TABLE IF NOT EXISTS {table_name} (
-                            id INTEGER PRIMARY KEY,
-                            name TEXT NOT NULL,
-                            email TEXT,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        );
-                        """
-                    elif "product" in table_name or "products" in table_name:
-                        return f"""
-                        CREATE TABLE IF NOT EXISTS {table_name} (
-                            id INTEGER PRIMARY KEY,
-                            name TEXT NOT NULL,
-                            price REAL NOT NULL,
-                            description TEXT
-                        );
-                        """
                     else:
-                        return f"""
-                        CREATE TABLE IF NOT EXISTS {table_name} (
-                            id INTEGER PRIMARY KEY,
-                            name TEXT NOT NULL,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        );
-                        """
+                        # Single column without 'and'
+                        col = column_part.strip()
+                        if col:
+                            if "email" in col:
+                                columns.append(f"{col} TEXT")
+                            elif any(term in col for term in ["price", "amount", "cost", "salary", "budget"]):
+                                columns.append(f"{col} REAL")
+                            elif any(term in col for term in ["date", "time", "created", "updated"]):
+                                columns.append(f"{col} TIMESTAMP")
+                            else:
+                                columns.append(f"{col} TEXT")
+            
+            # Generate SQL based on table name and columns
+            if columns:
+                column_defs = ",\n                    ".join(columns)
+                return f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                    id INTEGER PRIMARY KEY,
+                    {column_defs},
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );"""
+            else:
+                # Use predefined schemas for common tables
+                # Predefined schemas for common tables
+                if table_name.lower() in ["user", "users"]:
+                    return f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        email TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );""".strip()
+                elif "product" in table_name or "products" in table_name:
+                    return f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        price REAL NOT NULL,
+                        description TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );""".strip()
+                else:
+                    return f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );""".strip()
 
         # Handle table creation queries
         elif any(keyword in query.lower() for keyword in ["create table", "create a table", "make a table", "make table"]) or ("create" in query.lower() and "table" in query.lower()):
@@ -256,6 +303,41 @@ class SmartLLM:
             # Default to a generic table if we still can't find a name
             if not table_name:
                 return "-- Could not determine table name from query"
+                
+            # Check for custom columns in the query
+            custom_columns = []
+            if "with" in words:
+                with_index = words.index("with")
+                if with_index < len(words) - 1:
+                    # Extract column names after 'with'
+                    column_part = " ".join(words[with_index + 1:])
+                    
+                    # Parse column names separated by 'and'
+                    if "and" in column_part:
+                        column_names = [col.strip() for col in column_part.split("and")]
+                        for col in column_names:
+                            col = col.strip()
+                            if col:
+                                if "email" in col:
+                                    custom_columns.append(f"{col} TEXT")
+                                elif any(term in col for term in ["price", "amount", "cost", "salary", "budget"]):
+                                    custom_columns.append(f"{col} REAL")
+                                elif any(term in col for term in ["date", "time", "created", "updated"]):
+                                    custom_columns.append(f"{col} TIMESTAMP")
+                                else:
+                                    custom_columns.append(f"{col} TEXT")
+                    else:
+                        # Single column without 'and'
+                        col = column_part.strip()
+                        if col:
+                            if "email" in col:
+                                custom_columns.append(f"{col} TEXT")
+                            elif any(term in col for term in ["price", "amount", "cost", "salary", "budget"]):
+                                custom_columns.append(f"{col} REAL")
+                            elif any(term in col for term in ["date", "time", "created", "updated"]):
+                                custom_columns.append(f"{col} TIMESTAMP")
+                            else:
+                                custom_columns.append(f"{col} TEXT")
             
             # Different table schemas based on table name
             if table_name.lower() in ["user", "users"]:
@@ -282,14 +364,46 @@ class SmartLLM:
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 );""".strip()
             else:
-                # Generic table schema for other tables
-                return f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                # Generate table schema with custom columns if specified
+                if custom_columns:
+                    # Join the columns with a comma and newline
+                    columns_sql = ",\n                    ".join(custom_columns)
+                    return f"""CREATE TABLE IF NOT EXISTS {table_name} (
                     id INTEGER PRIMARY KEY,
-                    name TEXT,
-                    description TEXT,
+                    {columns_sql},
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );""".strip()
+                else:
+                    # Generic table schema for other tables
+                    return f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT,
+                        description TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );""".strip()
 
+        # Handle 'add bird' type queries
+        elif "add" in query:
+            words = query.split()
+            if len(words) >= 3:
+                entity_type = words[1]  # e.g., 'bird'
+                entity_name = words[2]  # e.g., 'sokół'
+                
+                # Make entity plural for table name
+                table = f"{entity_type}s"
+                
+                # Create an insert statement
+                return f"INSERT INTO {table} (name) VALUES ('{entity_name}');"
+                
+        # Handle 'remove all tables with name X' queries
+        elif ("remove" in query or "delete" in query) and "table" in query:
+            if "with name" in query:
+                name_part = query.split("with name")[1].strip()
+                table_name = name_part.split()[0] if name_part else None
+                
+                if table_name:
+                    return f"DROP TABLE IF EXISTS {table_name};"
+            
         # Handle CREATE USER queries
         elif "create" in query and "user" in query:
             # Extract the name
