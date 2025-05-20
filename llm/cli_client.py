@@ -8,6 +8,7 @@ import readline  # Dla historii komend
 import sqlite3
 import subprocess
 import json
+
 import requests
 from typing import Dict, List, Optional, Any
 

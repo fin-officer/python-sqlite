@@ -39,10 +39,10 @@ source venv/bin/activate || {
     exit 1
 }
 
-# Sprawdzenie, czy plik requirements-extended.txt istnieje
-if [ ! -f "requirements-extended.txt" ]; then
-    echo "Tworzenie pliku requirements-extended.txt..."
-    cat > requirements-extended.txt << EOL
+# Sprawdzenie, czy plik requirements.txt istnieje
+if [ ! -f "requirements.txt" ]; then
+    echo "Tworzenie pliku requirements.txt..."
+    cat > requirements.txt << EOL
 # Podstawowe zależności
 fastapi>=0.104.0
 uvicorn>=0.23.0
@@ -59,7 +59,7 @@ fi
 # Instalacja zależności Pythona
 echo "Instalacja zależności Pythona..."
 pip install --upgrade pip
-pip install -r requirements-extended.txt
+pip install -r requirements.txt
 
 # Opcjonalna instalacja transformers z cuda
 read -p "Czy chcesz zainstalować wsparcie dla CUDA w transformers? (t/n) " -n 1 -r
