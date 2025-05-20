@@ -2,14 +2,6 @@
 
 Minimalistyczna implementacja systemu text2sql wykorzystująca architekturę MCP (Model-Controller-Protocol) zintegrowana z TinyLLM, umożliwiająca tłumaczenie zapytań w języku naturalnym na SQL i wykonywanie ich na bazie danych SQLite.
 
-## Komponenty projektu
-
-1. **MCP Server** (`mcp_server.py`) - Serwer MCP implementujący funkcjonalność text2sql
-2. **CLI Client** (`cli_client.py`) - Interaktywny shell dla text2sql
-3. **REST API** (`rest_api.py`) - API REST dla text2sql
-4. **TinyLLM Client** (`tinyllm_client.py`) - Klient do usługi TinyLLM
-5. **TinyLLM Server** (`start_tinyllm.py`) - Skrypt do uruchomienia serwisu TinyLLM
-
 ## Wymagania systemowe
 
 - Fedora (lub inna dystrybucja Linuxa)
@@ -21,7 +13,7 @@ Minimalistyczna implementacja systemu text2sql wykorzystująca architekturę MCP
 
 1. Sklonuj repozytorium:
    ```bash
-   git clone https://github.com/yourusername/text2sql-mcp.git
+   git clone https://github.com/fin-officer/text2sql-mcp.git
    cd text2sql-mcp
    ```
 
@@ -30,6 +22,64 @@ Minimalistyczna implementacja systemu text2sql wykorzystująca architekturę MCP
    chmod +x setup.sh
    ./setup.sh
    ```
+
+
+
+
+Lista plików projektu
+
+```
+text2sql-mcp/
+├── README.md                # Dokumentacja projektu
+├── cli_client.py            # Klient interaktywny
+├── install_dependencies.sh  # Skrypt do instalacji zależności
+├── mcp_server.py            # Serwer MCP
+├── requirements.txt         # Lista zależności projektu
+├── rest_api.py              # Klient API REST
+├── run_text2sql.sh          # Skrypt do uruchamiania komponentów
+├── setup.sh                 # Skrypt instalacyjny
+├── start_tinyllm.py         # Skrypt do uruchomienia TinyLLM
+├── test_text2sql.py         # Testy jednostkowe
+├── tinyllm_client.py        # Klient TinyLLM
+└── tinyllm_server.py        # Serwer TinyLLM
+```
+
+## Komponenty projektu
+
+1. **MCP Server** (`mcp_server.py`) - Serwer MCP implementujący funkcjonalność text2sql
+2. **CLI Client** (`cli_client.py`) - Interaktywny shell dla text2sql
+3. **REST API** (`rest_api.py`) - API REST dla text2sql
+4. **TinyLLM Client** (`tinyllm_client.py`) - Klient do usługi TinyLLM
+5. **TinyLLM Server** (`start_tinyllm.py`) - Skrypt do uruchomienia serwisu TinyLLM
+
+### Instrukcja instalacji zależności
+
+Aby zainstalować wszystkie zależności projektu, wykonaj następujące kroki:
+
+1. Nadaj uprawnienia wykonywania skryptowi instalacyjnemu:
+   ```bash
+   chmod +x install.sh
+   ```
+
+2. Uruchom skrypt instalacyjny:
+   ```bash
+   ./install.sh
+   ```
+
+Skrypt zainstaluje wszystkie wymagane pakiety systemowe (jeśli używasz Fedora lub systemu opartego na APT) oraz zależności Pythona wymienione w pliku `requirements.txt`.
+
+Alternatywnie, możesz też ręcznie zainstalować zależności używając pip:
+```bash
+pip install -r requirements.txt
+```
+
+Jeśli chcesz zainstalować zależności w wirtualnym środowisku, możesz wykonać:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
 
 ## Uruchamianie
 

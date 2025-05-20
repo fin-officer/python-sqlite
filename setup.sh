@@ -25,42 +25,94 @@ echo "Instalacja zależności Pythona..."
 pip install --upgrade pip
 pip install mcp fastapi uvicorn pydantic requests
 
-# Sprawdzenie, czy pliki projektu istnieją w bieżącym katalogu
-files_to_check=(
-    "mcp_server.py"
-    "cli_client.py"
-    "rest_api.py"
-    "tinyllm_client.py"
-    "start_tinyllm.py"
-    "tinyllm_server.py"
-    "run_text2sql.sh"
-    "test_text2sql.py"
-    "README.md"
-)
+# Tworzenie katalogu projektu, jeśli nie istnieje
+mkdir -p text2sql_mcp
+cd text2sql_mcp
 
-missing_files=()
+# Sprawdzenie, czy pliki projektu istnieją w bieżącym katalogu
+files_to_check=("mcp_server.py" "cli_client.py" "rest_api.py" "tinyllm_client.py" "start_tinyllm.py")
+all_files_exist=true
+
 for file in "${files_to_check[@]}"; do
     if [ ! -f "$file" ]; then
-        missing_files+=("$file")
+        all_files_exist=false
+        break
     fi
 done
 
-if [ ${#missing_files[@]} -gt 0 ]; then
-    echo "UWAGA: Brakuje następujących plików projektu:"
-    for file in "${missing_files[@]}"; do
-        echo "  - $file"
-    done
-    echo "Upewnij się, że wszystkie pliki projektu są dostępne przed kontynuowaniem."
-    read -p "Czy chcesz kontynuować mimo to? (t/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Tt]$ ]]; then
-        exit 1
-    fi
+if [ "$all_files_exist" = true ]; then
+    echo "Pliki projektu już istnieją w bieżącym katalogu."
+else
+    echo "Pobieranie plików projektu..."
+    # W rzeczywistej implementacji tutaj byłoby pobieranie plików z repozytorium
+    # Dla uproszczenia, zakładamy, że pliki już są dostępne
+    echo "UWAGA: Pliki projektu muszą być dostępne w bieżącym katalogu."
 fi
 
 # Nadawanie uprawnień wykonywania skryptom
 echo "Nadawanie uprawnień wykonywania skryptom..."
-chmod +x mcp_server.py cli_client.py rest_api.py tinyllm_client.py start_tinyllm.py tinyllm_server.py run_text2sql.sh
+chmod +x mcp_server.py cli_client.py rest_api.py tinyllm_client.py start_tinyllm.py
+
+# Tworzenie skryptu pomocniczego do uruchamiania
+cat > run_text2sql.sh << 'EOF'
+#!/bin/bash
+
+# Funkcja do wyświetlania pomocy
+show_help() {
+    echo "Text2SQL - Narzędzie do tłumaczenia języka naturalnego na SQL"
+    echo ""
+    echo "Użycie:"
+    echo "  ./run_text2sql.sh [opcja]"
+    echo ""
+    echo "Opcje:"
+    echo "  shell       Uruchamia interaktywny shell"
+    echo "  api         Uruchamia serwer API REST"
+    echo "  tinyllm     Uruchamia serwis TinyLLM"
+    echo "  all         Uruchamia wszystkie komponenty"
+    echo "  help        Wyświetla tę pomoc"
+    echo ""
+}
+
+# Aktywacja wirtualnego środowiska
+source venv/bin/activate
+
+# Obsługa argumentów
+case "$1" in
+    shell)
+        echo "Uruchamianie interaktywnego shella..."
+        python cli_client.py
+        ;;
+    api)
+        echo "Uruchamianie serwera API REST..."
+        python rest_api.py
+        ;;
+    tinyllm)
+        echo "Uruchamianie serwisu TinyLLM..."
+        python start_tinyllm.py
+        ;;
+    all)
+        echo "Uruchamianie wszystkich komponentów..."
+        # Uruchamianie w tle
+        python start_tinyllm.py &
+        tinyllm_pid=$!
+        sleep 5
+
+        python rest_api.py &
+        api_pid=$!
+
+        # Uruchamianie shella w pierwszym planie
+        python cli_client.py
+
+        # Zatrzymywanie procesów uruchomionych w tle
+        kill $api_pid $tinyllm_pid
+        ;;
+    help|*)
+        show_help
+        ;;
+esac
+EOF
+
+chmod +x run_text2sql.sh
 
 echo
 echo "Instalacja zakończona pomyślnie!"

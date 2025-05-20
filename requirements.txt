@@ -1,0 +1,17 @@
+# requirements.txt - Zależności projektu text2sql
+
+# Podstawowe zależności
+mcp>=0.1.0
+fastapi>=0.104.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+requests>=2.31.0
+sqlite3
+
+# Zależności dla TinyLLM
+llama-cpp-python>=0.2.0
+huggingface_hub>=0.19.0
+
+# Zależności testowe
+pytest>=7.0.0
+pytest-asyncio>=0.21.0

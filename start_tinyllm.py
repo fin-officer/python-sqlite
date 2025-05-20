@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # start_tinyllm.py - Skrypt do uruchomienia serwisu TinyLLM
 
 import os
@@ -42,20 +41,105 @@ def install_packages():
 
 def start_tinyllm_server(model_path, port):
     """Uruchamia serwer TinyLLM"""
-    # Sprawdź, czy plik serwera istnieje
+    server_code = """
+import sys
+import os
+import time
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional, Dict
+import uvicorn
+import json
+from llama_cpp import Llama
+
+# Modele danych dla API
+class CompletionRequest(BaseModel):
+    prompt: str
+    max_tokens: int = 100
+    temperature: float = 0.7
+    stop: Optional[List[str]] = None
+
+class CompletionChoice(BaseModel):
+    text: str
+    index: int = 0
+    finish_reason: str = "stop"
+
+class CompletionResponse(BaseModel):
+    id: str
+    object: str = "text_completion"
+    created: int
+    model: str
+    choices: List[CompletionChoice]
+
+# Inicjalizacja aplikacji FastAPI
+app = FastAPI(title="TinyLLM API")
+
+# Ładowanie modelu
+model_path = "{model_path}"
+model_name = os.path.basename(model_path)
+
+print(f"Ładowanie modelu z {model_path}...")
+
+try:
+    # Znajdź plik .gguf w katalogu modelu
+    model_files = []
+    for ext in [".gguf", ".bin"]:
+        model_files.extend(list(Path(model_path).glob(f"*{ext}")))
+
+    if not model_files:
+        raise FileNotFoundError(f"Nie znaleziono pliku modelu w {model_path}")
+
+    # Użyj pierwszego znalezionego pliku modelu
+    model_file = str(model_files[0])
+    print(f"Znaleziono plik modelu: {model_file}")
+
+    # Załaduj model
+    llm = Llama(model_path=model_file, n_ctx=2048)
+    print(f"Model załadowany z {model_file}")
+except Exception as e:
+    print(f"Błąd ładowania modelu: {e}")
+    sys.exit(1)
+
+@app.get("/")
+def read_root():
+    return {"message": "TinyLLM API is running", "model": model_name}
+
+@app.post("/v1/completions", response_model=CompletionResponse)
+async def create_completion(request: CompletionRequest):
+    try:
+        # Uzyskaj uzupełnienie z modelu
+        output = llm(
+            request.prompt,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
+            stop=request.stop
+        )
+
+        # Formatuj odpowiedź
+        text = output["choices"][0]["text"]
+
+        return CompletionResponse(
+            id=f"cmpl-{{hash(text) & 0xffffffff}}", 
+            created=int(time.time()),
+            model=model_name,
+            choices=[CompletionChoice(text=text)]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Uruchom serwer
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port={port})
+    """.format(model_path=model_path, port=port)
+
+    # Zapisz kod serwera do pliku
     server_file = "tinyllm_server.py"
-    if not os.path.exists(server_file):
-        print(f"Błąd: Plik serwera {server_file} nie istnieje")
-        return None
+    with open(server_file, "w") as f:
+        f.write(server_code)
 
     # Uruchom serwer
     print(f"Uruchamianie serwera TinyLLM na porcie {port}...")
-    process = subprocess.Popen([
-        sys.executable,
-        server_file,
-        "--model-path", model_path,
-        "--port", str(port)
-    ])
+    process = subprocess.Popen([sys.executable, server_file])
 
     # Poczekaj na uruchomienie serwera
     print("Czekanie na uruchomienie serwera...")
@@ -103,8 +187,6 @@ def main():
 
     # Uruchom serwer
     server_process = start_tinyllm_server(model_path, args.port)
-    if not server_process:
-        sys.exit(1)
 
     print(f"Serwis TinyLLM działa na http://localhost:{args.port}")
     print("Naciśnij Ctrl+C, aby zatrzymać serwis")
