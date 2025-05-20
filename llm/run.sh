@@ -71,13 +71,44 @@ install_model() {
             echo "GPT-2 model installed successfully!"
             ;;
         llama-cpp)
-            pip install llama-cpp-python --no-cache-dir
+            # Try to install llama-cpp-python with system compiler
+            echo "Attempting to install llama-cpp-python..."
+            # Set environment variables to use system compiler
+            export CC="gcc"
+            export CXX="g++"
+            # Try installation with CPU only
+            pip install llama-cpp-python --no-cache-dir --verbose || {
+                echo "Standard installation failed, trying with pre-built wheels..."
+                pip install --force-reinstall --extra-index-url https://download.pytorch.org/whl/cpu llama-cpp-python==0.2.11+cpuavx2 || {
+                    echo "WARNING: Could not install llama-cpp-python. This is optional and the system will still work without it."
+                    echo "If you want to use llama-cpp models, you may need to install gcc/g++ or use a pre-built wheel."
+                    echo "See https://github.com/abetlen/llama-cpp-python for more details."
+                    return 1
+                }
+            }
             echo "llama-cpp installed successfully!"
             ;;
         all)
-            pip install transformers sentencepiece llama-cpp-python --no-cache-dir
+            # Install transformers and related packages
+            pip install transformers sentencepiece
+            
+            # Install models
             python -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; AutoTokenizer.from_pretrained('t5-small'); AutoModelForSeq2SeqLM.from_pretrained('t5-small')"
             python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; AutoTokenizer.from_pretrained('gpt2'); AutoModelForCausalLM.from_pretrained('gpt2')"
+            
+            # Try to install llama-cpp-python with system compiler
+            echo "Attempting to install llama-cpp-python..."
+            # Set environment variables to use system compiler
+            export CC="gcc"
+            export CXX="g++"
+            # Try installation with CPU only
+            pip install llama-cpp-python --no-cache-dir --verbose || {
+                echo "Standard installation failed, trying with pre-built wheels..."
+                pip install --force-reinstall --extra-index-url https://download.pytorch.org/whl/cpu llama-cpp-python==0.2.11+cpuavx2 || {
+                    echo "WARNING: Could not install llama-cpp-python. This is optional and the system will still work without it."
+                }
+            }
+            
             echo "All models installed successfully!"
             ;;
         *)
@@ -140,7 +171,23 @@ case "$1" in
         ;;
     models)
         echo "Starting model selector shell..."
-        python -c "from model_selector import ModelRegistry; print('Available models:\n' + '\n'.join([f\"- {name}: {info['description']}\" for name, info in ModelRegistry.list_models().items()]))"
+        # Use a simple Python script to avoid module import issues
+        python -c "
+# Import directly from current directory
+import sys
+import os
+
+# Add current directory to path
+sys.path.append(os.getcwd())
+
+# Now import the module
+from model_selector import ModelRegistry
+
+# Print available models
+print('Available models:')
+for name, info in ModelRegistry.list_models().items():
+    print(f\"- {name}: {info['description']}\")
+        "
         ;;
     all)
         echo "Starting all components..."

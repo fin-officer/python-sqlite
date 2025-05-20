@@ -11,8 +11,9 @@ class BaseLLM(ABC):
         """Generate text based on the prompt"""
         pass
 
+    @classmethod
     @abstractmethod
-    def get_model_info(self) -> Dict:
+    def get_model_info(cls) -> Dict:
         """Get information about the model"""
         pass
 
@@ -55,7 +56,8 @@ class GPT2Model(BaseLLM):
         # Implementation for GPT-2
         return "Generated text from GPT-2"
 
-    def get_model_info(self) -> Dict:
+    @classmethod
+    def get_model_info(cls) -> Dict:
         return {
             "name": "GPT-2",
             "description": "Smaller, faster model with 1.5B parameters",
@@ -69,7 +71,8 @@ class LlamaModel(BaseLLM):
         # Implementation for LLaMA
         return "Generated text from LLaMA"
 
-    def get_model_info(self) -> Dict:
+    @classmethod
+    def get_model_info(cls) -> Dict:
         return {
             "name": "LLaMA",
             "description": "Open source model from Meta with various sizes",

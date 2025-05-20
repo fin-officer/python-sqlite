@@ -1,12 +1,25 @@
 # shell.py
 import cmd
-from typing import List, Dict, Any
+import os
+import sys
+from typing import List, Dict, Any, Tuple, Optional
 import sqlite3
 from dataclasses import dataclass
 
 # Import from the current directory
 from sql_helper import SQLHelper
 from model_selector import ModelRegistry, ModelContext
+
+# Import SmartLLM for natural language translation
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Try to import the refactored version first, fall back to original if not available
+try:
+    from smart_llm_refactored import SmartLLM
+    print("Using refactored SmartLLM for improved natural language processing")
+except ImportError:
+    from smart_llm import SmartLLM
+    print("Using original SmartLLM implementation")
 
 @dataclass
 class LLMModel:
@@ -47,6 +60,10 @@ class LLMSQLShell(cmd.Cmd):
         self.model_selector = LLMModelSelector()
         self.current_model = None
         self.context = ""
+        
+        # Initialize SmartLLM for natural language translation
+        self.translator = SmartLLM(use_advanced=True)
+        print("Natural language to SQL translation enabled.")
 
     def do_models(self, arg):
         """List available LLM models."""
@@ -105,7 +122,7 @@ class LLMSQLShell(cmd.Cmd):
         return True
 
     def default(self, line):
-        """Handle SQL queries."""
+        """Handle SQL and natural language queries."""
         if not line.strip():
             return
 
@@ -113,7 +130,31 @@ class LLMSQLShell(cmd.Cmd):
         if line.lower() in ("tables", "show tables", "list tables"):
             self.do_tables("")
             return
-
+            
+        # First, try to translate the natural language query to SQL
+        is_sql = line.strip().upper().startswith(("SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "PRAGMA"))
+        
+        # Always try to translate natural language to SQL first
+        try:
+            # This might be a natural language query, translate it
+            sql = self.translator.translate(line)
+            if sql and not sql.startswith("--") and "Could not translate" not in sql:
+                print(f"Generated SQL: {sql}")
+                line = sql  # Use the translated SQL
+            elif is_sql:
+                # It's already SQL, continue with execution
+                pass
+            else:
+                # Translation failed and it's not SQL
+                print("Could not translate query to SQL. Try using SQL directly.")
+                return
+        except Exception as e:
+            print(f"Translation error: {str(e)}")
+            if not is_sql:
+                # If it's not SQL and translation failed, don't try to execute
+                return
+            print("Trying to execute as direct SQL...")
+        
         # Execute SQL
         results, error = SQLHelper.execute_sql(self.conn, line)
 
