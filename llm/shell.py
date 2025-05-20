@@ -1,12 +1,12 @@
-# llm/shell.py
+# shell.py
 import cmd
 from typing import List, Dict, Any
 import sqlite3
 from dataclasses import dataclass
 
-# Import from the same package
-from .sql_helper import SQLHelper
-from .model_selector import ModelRegistry, ModelContext
+# Import from the current directory
+from sql_helper import SQLHelper
+from model_selector import ModelRegistry, ModelContext
 
 @dataclass
 class LLMModel:

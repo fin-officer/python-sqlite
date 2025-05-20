@@ -117,7 +117,8 @@ case "$1" in
     shell)
         echo "Starting interactive SQL shell..."
         create_database
-        python -m llm.shell
+        # Run the shell directly instead of as a module
+        python shell.py
         ;;
     api)
         echo "Starting FastAPI REST server..."
@@ -126,7 +127,7 @@ case "$1" in
             echo "Run './run.sh install' first."
             exit 1
         fi
-        uvicorn llm.api:app --reload
+        uvicorn api:app --reload
         ;;
     llm)
         echo "Starting SmartLLM API server..."
@@ -135,11 +136,11 @@ case "$1" in
             echo "Run './run.sh install' first."
             exit 1
         fi
-        python -m llm.smart_llm --server
+        python smart_llm.py --server
         ;;
     models)
         echo "Starting model selector shell..."
-        python -c "from llm.model_selector import ModelRegistry; print('Available models:\n' + '\n'.join([f\"- {name}: {info['description']}\" for name, info in ModelRegistry.list_models().items()]))"
+        python -c "from model_selector import ModelRegistry; print('Available models:\n' + '\n'.join([f\"- {name}: {info['description']}\" for name, info in ModelRegistry.list_models().items()]))"
         ;;
     all)
         echo "Starting all components..."
@@ -147,7 +148,7 @@ case "$1" in
         # Start SmartLLM in the background (if installed)
         if check_package "transformers"; then
             echo "Starting SmartLLM API server..."
-            python -m llm.smart_llm --server --port 8080 &
+            python smart_llm.py --server --port 8080 &
             llm_pid=$!
             sleep 3  # Give it time to start
         else
@@ -158,7 +159,7 @@ case "$1" in
         # Start FastAPI server in the background
         if check_package "fastapi"; then
             echo "Starting FastAPI REST server..."
-            uvicorn llm.api:app --port 8000 &
+            uvicorn api:app --port 8000 &
             api_pid=$!
             sleep 2  # Give it time to start
         else
@@ -169,7 +170,7 @@ case "$1" in
         # Start shell in the foreground
         echo "Starting interactive SQL shell..."
         create_database
-        python -m llm.shell
+        python shell.py
         
         # Stop background processes when shell exits
         if [ -n "$api_pid" ]; then
@@ -201,7 +202,7 @@ case "$1" in
             echo "Run './run.sh install' first."
             exit 1
         fi
-        python -m pytest tests/
+        PYTHONPATH=. pytest tests/
         ;;
     help|*)
         show_help

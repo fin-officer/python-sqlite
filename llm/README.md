@@ -1,27 +1,170 @@
-Teraz stwórzmy zaktualizowany skrypt uruchomieniowy:
+# SmartLLM: Natural Language to SQL with Model Context Protocol
 
-Na koniec, zaktualizowany skrypt instalacyjny:
+## Overview
 
-## Rozszerzona wersja Text2SQL z zaawansowanymi funkcjami LLM
+SmartLLM is an enhanced natural language to SQL translation system that integrates with SQLite databases. It uses language models to translate natural language queries into SQL commands and executes them against a database.
 
-Przygotowałem rozszerzoną wersję projektu Text2SQL, która oferuje pełniejszą kontrolę poprzez zaawansowane tłumaczenie języka naturalnego na SQL. Zamiast polegać na problematycznych zależnościach MCP i llama-cpp-python, które powodowały problemy na Fedora, stworzyłem własne rozwiązanie oparte na popularnych bibliotekach transformers i huggingface_hub.
+## Features
 
-### Główne pliki projektu:
+- **Multiple LLM Model Support**: Supports various models up to 2B parameters
+- **Model Context Protocol Integration**: Maintains context between queries for better results
+- **SQLite Database Integration**: Automatically creates and manages database tables
+- **Interactive Shell**: Command-line interface for natural language queries
+- **REST API**: FastAPI-based API with OpenAPI documentation
+- **Error Handling**: Provides helpful suggestions when SQL queries fail
 
-1. **smart_llm.py** - Własna implementacja modelu językowego do tłumaczenia zapytań
-   - Wykorzystuje modele Hugging Face (np. T5)
-   - Działa w dwóch trybach: jako moduł lokalny lub jako serwer API
-   - Ma wbudowany mechanizm fallback na wypadek problemów
+## Project Structure
 
-2. **cli_client.py** - Rozszerzony klient interaktywny
-   - Może korzystać z lokalnego SmartLLM lub z zewnętrznego serwera API
-   - Obsługuje szerszy zakres zapytań w języku naturalnym
-   - Wyświetla schemat bazy danych
+```
+llm/
+├── api.py              # FastAPI REST API
+├── db_manager.py       # Database management
+├── model_selector.py   # Model selection and context management
+├── shell.py           # Interactive command-line interface
+├── smart_llm.py       # Core language model for translation
+├── sql_helper.py      # SQL execution and error handling
+├── run.sh             # Script to run various components
+├── requirements.txt   # Python dependencies
+└── .env.example       # Example environment variables
+```
 
-3. **rest_api.py** - Rozszerzone API REST
-   - Dodatkowe endpointy do zarządzania schematem bazy danych
-   - Integracja z SmartLLM
-   - Szczegółowa dokumentacja API w Swagger
+## Installation
+
+### Prerequisites
+
+- Python 3.8+
+- SQLite3
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/fin-officer.git
+   cd fin-officer/python-sqlite/llm
+   ```
+
+2. Install dependencies:
+   ```bash
+   ./run.sh install
+   ```
+
+3. Install specific models (optional):
+   ```bash
+   ./run.sh install-model t5-small  # For T5-small model
+   ./run.sh install-model gpt2      # For GPT-2 model
+   ./run.sh install-model llama-cpp  # For llama-cpp
+   ./run.sh install-model all       # For all models
+   ```
+
+4. Create a `.env` file based on `.env.example`:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your preferred settings
+   ```
+
+## Usage
+
+### Running the Interactive Shell
+
+```bash
+./run.sh shell
+```
+
+This starts the interactive SQL shell where you can enter natural language queries:
+
+```
+SQL> create dogs table
+Generated SQL: CREATE TABLE IF NOT EXISTS dogs (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+1 row(s) affected.
+
+SQL> show all tables
+
+users
+products
+orders
+order_items
+dogs
+
+SQL> exit
+```
+
+### Running the API Server
+
+```bash
+./run.sh api
+```
+
+This starts the FastAPI server on http://localhost:8000. You can access the API documentation at http://localhost:8000/docs.
+
+### Running the SmartLLM Server
+
+```bash
+./run.sh llm
+```
+
+This starts the SmartLLM server which provides natural language to SQL translation services.
+
+### Running All Components
+
+```bash
+./run.sh all
+```
+
+This starts all components (SmartLLM server, API server, and interactive shell) together.
+
+### Viewing Available Models
+
+```bash
+./run.sh models
+```
+
+This displays all available language models that can be used for translation.
+
+## Environment Variables
+
+The following environment variables can be set in the `.env` file:
+
+| Variable | Description | Default Value |
+|----------|-------------|---------------|
+| DB_PATH | Path to the SQLite database file | smart_llm.db |
+| MODEL_NAME | Name of the model to use | t5-small |
+| USE_ADVANCED | Whether to use advanced features | true |
+| DEBUG | Enable debug mode | false |
+| API_HOST | Host for the API server | 0.0.0.0 |
+| API_PORT | Port for the API server | 8000 |
+
+## Examples
+
+### Creating Tables
+
+```
+SQL> create users table
+SQL> create products table
+SQL> create orders table
+SQL> create custom_table with name and description
+```
+
+### Querying Data
+
+```
+SQL> show all users
+SQL> find user with name John
+SQL> list all products with price greater than 100
+```
+
+### Modifying Data
+
+```
+SQL> create user named John with email john@example.com
+SQL> update user with id 1 set email to new@example.com
+SQL> delete user with id 2
+```
 
 4. **run.sh** - Skrypt do uruchamiania komponentów
    - Opcje uruchamiania shell, api, llm lub all
