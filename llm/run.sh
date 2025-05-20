@@ -1,5 +1,29 @@
 #!/bin/bash
 # run.sh - Rozszerzony skrypt do uruchamiania komponentów text2sql
+#!/bin/bash
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    python -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install -r requirements.txt
+else
+    source venv/bin/activate
+fi
+
+# Create default database if it doesn't exist
+if [ ! -f "database.db" ]; then
+    sqlite3 database.db "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT);"
+    sqlite3 database.db "CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price REAL, description TEXT);"
+    echo "Created default database with users and products tables"
+fi
+
+# Start the shell
+python -m llm.shell
 
 # Funkcja do wyświetlania pomocy
 show_help() {
