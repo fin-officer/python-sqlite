@@ -234,22 +234,61 @@ class SmartLLM:
                         );
                         """
 
-        # Alternatywna składnia dla create table
-        elif "create" in query and "table" in query:
-            words = query.split()
-            create_index = words.index("create")
-
-            if "table" in words and create_index < len(words) - 2:
+        # Handle table creation queries
+        elif any(keyword in query.lower() for keyword in ["create table", "create a table", "make a table", "make table"]) or ("create" in query.lower() and "table" in query.lower()):
+            # Extract table name
+            table_name = None
+            words = query.lower().split()
+            
+            # Find the table name after the word 'table'
+            if "table" in words:
                 table_index = words.index("table")
                 if table_index < len(words) - 1:
                     table_name = words[table_index + 1]
-                    return f"""
-                    CREATE TABLE IF NOT EXISTS {table_name} (
-                        id INTEGER PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    );
-                    """
+            
+            # If we couldn't find the table name, look for it between 'create' and 'table'
+            if not table_name and "create" in words and "table" in words:
+                create_index = words.index("create")
+                table_index = words.index("table")
+                if create_index < table_index - 1:
+                    table_name = words[create_index + 1]
+            
+            # Default to a generic table if we still can't find a name
+            if not table_name:
+                return "-- Could not determine table name from query"
+            
+            # Different table schemas based on table name
+            if table_name.lower() in ["user", "users"]:
+                return f"""CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );""".strip()
+            elif table_name.lower() in ["product", "products"]:
+                return f"""CREATE TABLE IF NOT EXISTS products (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    price REAL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );""".strip()
+            elif table_name.lower() in ["order", "orders"]:
+                return f"""CREATE TABLE IF NOT EXISTS orders (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                );""".strip()
+            else:
+                # Generic table schema for other tables
+                return f"""CREATE TABLE IF NOT EXISTS {table_name} (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );""".strip()
 
         # Handle CREATE USER queries
         elif "create" in query and "user" in query:

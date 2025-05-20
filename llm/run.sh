@@ -185,6 +185,15 @@ case "$1" in
     install)
         install_dependencies
         ;;
+    install-model)
+        if [ -z "$2" ]; then
+            echo "Error: No model specified."
+            echo "Usage: ./run.sh install-model MODEL"
+            echo "Available models: t5-small, gpt2, llama-cpp, all"
+            exit 1
+        fi
+        install_model "$2"
+        ;;
     test)
         echo "Running test suite..."
         if ! check_package "pytest"; then
