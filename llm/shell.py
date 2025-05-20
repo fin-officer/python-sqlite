@@ -2,8 +2,38 @@
 import cmd
 from typing import List, Dict, Any
 import sqlite3
-from .model_selector import LLMModelSelector, LLMModel
+from dataclasses import dataclass
+
+# Import from the same package
 from .sql_helper import SQLHelper
+from .model_selector import ModelRegistry, ModelContext
+
+@dataclass
+class LLMModel:
+    name: str
+    size: int  # in millions of parameters
+    context_window: int
+    supports_sql: bool = True
+
+class LLMModelSelector:
+    def __init__(self):
+        self.models = [
+            LLMModel("GPT-2 Small", 124, 1024),
+            LLMModel("GPT-2 Medium", 355, 1024),
+            LLMModel("GPT-2 Large", 774, 1024),
+            LLMModel("GPT-2 XL", 1500, 1024),
+            LLMModel("T5-Small", 60, 512),
+            LLMModel("T5-Base", 220, 512),
+            LLMModel("DistilGPT-2", 82, 1024),
+        ]
+        
+    def get_available_models(self, max_size_mb: int = 2000):
+        return [m for m in self.models if m.size <= max_size_mb]
+        
+    def save_model_context(self, model_name: str, context: str):
+        # In a real implementation, this would save to a database
+        print(f"Context saved for {model_name}")
+        return True
 
 
 class LLMSQLShell(cmd.Cmd):

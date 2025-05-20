@@ -1,29 +1,67 @@
 #!/bin/bash
-# run.sh - Rozszerzony skrypt do uruchamiania komponentów text2sql
-#!/bin/bash
+# run.sh - Comprehensive script for running text2sql components
 
-# Install dependencies
-pip install -r requirements.txt
+# Function to display help
+show_help() {
+    echo "Text2SQL - Natural language to SQL translation tool"
+    echo ""
+    echo "Usage:"
+    echo "  ./run.sh [option]"
+    echo ""
+    echo "Options:"
+    echo "  shell       Run the interactive SQL shell with LLM integration"
+    echo "  api         Run the FastAPI REST server"
+    echo "  llm         Run the SmartLLM API server"
+    echo "  models      Run the model selector shell"
+    echo "  all         Run all components together"
+    echo "  install     Install all dependencies"
+    echo "  test        Run the test suite"
+    echo "  help        Display this help message"
+    echo ""
+}
 
-# Create virtual environment if it doesn't exist
-if [ ! -d "venv" ]; then
-    python -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
+# Function to install dependencies
+install_dependencies() {
+    echo "Installing dependencies..."
+    
+    # Create virtual environment if it doesn't exist
+    if [ ! -d "venv" ]; then
+        python -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip
+    else
+        source venv/bin/activate
+    fi
+    
+    # Install dependencies
     pip install -r requirements.txt
-else
+    
+    echo "Dependencies installed successfully!"
+}
+
+# Function to create default database
+create_database() {
+    if [ ! -f "database.db" ]; then
+        echo "Creating default database..."
+        sqlite3 database.db "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT);"
+        sqlite3 database.db "CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price REAL, description TEXT);"
+        echo "Created default database with users and products tables"
+    fi
+}
+
+# Function to check if a package is installed
+check_package() {
+    if python -c "import $1" &>/dev/null; then
+        return 0  # Installed
+    else
+        return 1  # Not installed
+    fi
+}
+
+# Activate virtual environment if it exists
+if [ -d "venv" ] && [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
 fi
-
-# Create default database if it doesn't exist
-if [ ! -f "database.db" ]; then
-    sqlite3 database.db "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT);"
-    sqlite3 database.db "CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, price REAL, description TEXT);"
-    echo "Created default database with users and products tables"
-fi
-
-# Start the shell
-python -m llm.shell
 
 # Funkcja do wyświetlania pomocy
 show_help() {

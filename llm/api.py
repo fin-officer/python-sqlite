@@ -1,8 +1,9 @@
 # llm/api.py
+import time
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
-from model_selector import ModelRegistry, ModelContext
+from typing import Optional, List, Dict
+from .model_selector import ModelRegistry, ModelContext
 
 app = FastAPI(
     title="LLM API",
