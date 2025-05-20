@@ -118,7 +118,7 @@ else
             echo -e "${YELLOW}Nie znaleziono pliku requirements.txt.${NC}"
             echo -e "${YELLOW}Instalowanie podstawowych zależności...${NC}"
             pip install fastapi uvicorn pydantic requests
-        }
+        fi
     fi
 fi
 echo

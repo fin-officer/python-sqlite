@@ -564,3 +564,450 @@ Jeśli masz pytania lub potrzebujesz wsparcia, możesz:
 - Skontaktować się z twórcami przez email: support@text2sql.example.com
 
 
+
+# Integracja TinyLLM z Text2SQL
+
+## Spis treści
+1. [Wprowadzenie](#wprowadzenie)
+2. [Wymagania](#wymagania)
+3. [Instalacja](#instalacja)
+4. [Uruchamianie](#uruchamianie)
+5. [Rozwiązywanie problemów](#rozwiązywanie-problemów)
+6. [Zaawansowana konfiguracja](#zaawansowana-konfiguracja)
+
+## Wprowadzenie
+
+TinyLLM to lekki model językowy, który można zintegrować z Text2SQL, aby umożliwić bardziej zaawansowane tłumaczenie zapytań z języka naturalnego na SQL. Ta dokumentacja opisuje, jak skonfigurować i uruchomić tę integrację.
+
+## Wymagania
+
+### Minimalne wymagania systemowe
+- Python 3.8 lub nowszy
+- SQLite
+- min. 4GB RAM
+- Miejsce na dysku: ~300MB (dla modelu T5-small)
+
+### Wymagane pakiety
+- transformers
+- sentence-transformers (opcjonalnie, dla lepszego kodowania zapytań)
+- fastapi
+- uvicorn
+- pydantic
+- requests
+
+## Instalacja
+
+1. **Napraw integrację TinyLLM**
+
+   Użyj dostarczonego skryptu naprawczego, aby zaktualizować moduł SmartLLM:
+   ```bash
+   chmod +x fix_tinyllm.sh
+   ./fix_tinyllm.sh
+   ```
+
+   Ten skrypt:
+   - Utworzy kopię zapasową istniejącego pliku `smart_llm.py` (jeśli istnieje)
+   - Zastąpi go naprawioną wersją
+   - Sprawdzi i zainstaluje wymagane zależności
+
+2. **Zainstaluj zależności ręcznie**
+
+   Alternatywnie, możesz zainstalować zależności ręcznie:
+   ```bash
+   pip install transformers sentence-transformers fastapi uvicorn pydantic requests
+   ```
+
+   Lub użyć pliku `requirements-full.txt`:
+   ```bash
+   pip install -r requirements-full.txt
+   ```
+
+## Uruchamianie
+
+### 1. Testowanie modułu SmartLLM
+
+Aby przetestować, czy moduł SmartLLM działa poprawnie:
+```bash
+python smart_llm.py --query "create a user named John"
+```
+
+Powinieneś zobaczyć wygenerowane zapytanie SQL:
+```
+Query: create a user named John
+SQL: INSERT INTO users (name) VALUES ('John');
+```
+
+### 2. Uruchamianie interaktywnego shella z TinyLLM
+
+Użyj skryptu `run.sh`, aby uruchomić interaktywny shell:
+```bash
+./run.sh shell
+```
+
+Przykłady zapytań:
+```
+text2sql> create table employees with name and position and salary
+text2sql> create a user named John with email john@example.com
+text2sql> show all users
+text2sql> create a product named Laptop price 999.99 description "High performance laptop"
+text2sql> find user with name Jo
+text2sql> update product with id 1 set price to 899.99
+```
+
+### 3. Uruchamianie serwera SmartLLM API
+
+Aby uruchomić SmartLLM jako oddzielny serwer API:
+```bash
+python smart_llm.py --server --port 8080
+```
+
+Ten serwer udostępnia endpoint `/translate` do tłumaczenia zapytań.
+
+### 4. Uruchamianie wszystkich komponentów
+
+Aby uruchomić wszystkie komponenty razem:
+```bash
+./run.sh all
+```
+
+## Rozwiązywanie problemów
+
+### Problem: SmartLLM generuje niepoprawne zapytania SQL
+
+**Symptom**: Model generuje SQL z niepotrzebnymi prefiksami, które powodują błędy składni.
+
+**Rozwiązanie**: Użyj skryptu naprawczego `fix_tinyllm.sh`, który implementuje czyszczenie wyjścia z modelu.
+
+### Problem: Problemy z instalacją transformers
+
+**Symptom**: Błędy podczas instalacji pakietu transformers.
+
+**Rozwiązanie**:
+1. Upewnij się, że masz zainstalowany Python 3.8 lub nowszy.
+2. Spróbuj zainstalować minimalną wersję:
+   ```bash
+   pip install transformers --no-deps
+   pip install torch --index-url https://download.pytorch.org/whl/cpu
+   ```
+
+### Problem: Duże zużycie pamięci
+
+**Symptom**: System zwalnia lub występują błędy braku pamięci.
+
+**Rozwiązanie**:
+1. Użyj mniejszego modelu, np. zmieniając parametr w konstruktorze SmartLLM:
+   ```python
+   llm = SmartLLM(model_name="distilbert-base-uncased")
+   ```
+2. Ograniczyć użycie pamięci przy inicjalizacji modelu:
+   ```python
+   llm = SmartLLM(low_memory=True)
+   ```
+
+## Zaawansowana konfiguracja
+
+### Używanie własnych modeli
+
+Możesz dostosować SmartLLM do używania innych modeli z Hugging Face:
+
+1. **Zmiana modelu w pliku `smart_llm.py`**:
+   ```python
+   def __init__(self, model_name: str = "t5-small", use_advanced: bool = True):
+   ```
+   Zmień `t5-small` na nazwę innego modelu z Hugging Face, np.:
+   - `"distilbert-base-uncased"` - lżejszy model, mniejszy rozmiar
+   - `"t5-base"` - większy model, lepsze wyniki
+   - `"microsoft/Phi-3-mini-4k-instruct"` - model instrukcyjny
+
+2. **Dodawanie własnego modelu w czasie wykonania**:
+   ```bash
+   python smart_llm.py --model "twój/model" --query "create a user named John"
+   ```
+
+3. **Modyfikacja skryptu uruchomieniowego**:
+   W pliku `run.sh` dodaj opcję do wyboru modelu, np.:
+   ```bash
+   CUSTOM_MODEL="t5-small"
+   # ...
+   python smart_llm.py --server --port 8080 --model "$CUSTOM_MODEL"
+   ```
+
+### Konfiguracja pamięci podręcznej modelu
+
+Aby przyspieszyć ładowanie modelu i zmniejszyć zużycie zasobów, możesz skonfigurować pamięć podręczną:
+
+1. **Dodaj zmienną środowiskową**:
+   ```bash
+   export TRANSFORMERS_CACHE="/ścieżka/do/cache"
+   ```
+
+2. **Dodaj do pliku konfiguracyjnego**:
+   ```python
+   # W smart_llm.py
+   os.environ["TRANSFORMERS_CACHE"] = "/ścieżka/do/cache"
+   ```
+
+### Dostosowanie promptów dla modelu
+
+Możesz dostosować prompt używany do tłumaczenia zapytań:
+
+1. **Edytuj template promptu** w metodzie `translate` klasy `SmartLLM`:
+   ```python
+   prompt = f"""
+   Translate the following natural language query to a valid SQLite SQL statement.
+   
+   Database schema:
+   {schema}
+   
+   Natural language query: {query}
+   
+   Only return the SQL statement without any explanation or additional text:
+   """
+   ```
+
+2. **Dostosuj pod kątem swojej domeny** - na przykład, jeśli używasz systemu do zarządzania zamówieniami:
+   ```python
+   prompt = f"""
+   Translate the following query to SQL for an order management system.
+   
+   Database schema:
+   {schema}
+   
+   Query: {query}
+   
+   Return only the SQL statement:
+   """
+   ```
+
+### Integracja z zewnętrznymi bazami danych
+
+Domyślna implementacja używa SQLite, ale możesz ją dostosować do innych baz danych:
+
+1. **Dla PostgreSQL**:
+   ```python
+   # Zainstaluj psycopg2: pip install psycopg2-binary
+   
+   import psycopg2
+   
+   # Zmień metodę _get_connection w klasie Text2SQLShell (cli_client.py)
+   def _get_connection(self):
+       """Zwraca połączenie do bazy danych"""
+       return psycopg2.connect(
+           host="localhost",
+           database="text2sql",
+           user="username",
+           password="password"
+       )
+   ```
+
+2. **Dla MySQL**:
+   ```python
+   # Zainstaluj mysql-connector-python: pip install mysql-connector-python
+   
+   import mysql.connector
+   
+   # Zmień metodę _get_connection
+   def _get_connection(self):
+       """Zwraca połączenie do bazy danych"""
+       return mysql.connector.connect(
+           host="localhost",
+           database="text2sql",
+           user="username",
+           password="password"
+       )
+   ```
+
+### Optymalizacja generowania zapytań SQL
+
+Aby poprawić jakość generowanych zapytań SQL:
+
+1. **Dodaj więcej przykładów do promptu**:
+   ```python
+   prompt = f"""
+   Translate the following natural language query to a valid SQLite SQL statement.
+   
+   Database schema:
+   {schema}
+   
+   Examples:
+   - "show all users" -> SELECT * FROM users;
+   - "create a user named John" -> INSERT INTO users (name) VALUES ('John');
+   - "find products cheaper than 100" -> SELECT * FROM products WHERE price < 100;
+   
+   Natural language query: {query}
+   
+   Only return the SQL statement:
+   """
+   ```
+
+2. **Dostosuj parametry generowania tekstu**:
+   ```python
+   outputs = self.model(
+       prompt,
+       max_length=200,
+       temperature=0.2,  # Niższa temperatura = bardziej przewidywalne wyniki
+       do_sample=True,
+       top_p=0.9,  # Filtrowanie nieprawdopodobnych tokenów
+       num_return_sequences=1
+   )
+   ```
+
+## Testowanie i debugowanie
+
+### Tworzenie testów dla niestandardowych zapytań
+
+Możesz stworzyć plik testowy z niestandardowymi zapytaniami:
+
+```python
+# test_custom_queries.py
+from smart_llm import SmartLLM
+
+def test_queries():
+    llm = SmartLLM()
+    
+    test_cases = [
+        ("create a table for employees with columns for name, position and salary", 
+         "CREATE TABLE"),
+        ("show me all users who registered after January", 
+         "SELECT * FROM users WHERE"),
+        ("delete the product with id 5", 
+         "DELETE FROM products WHERE id = 5"),
+    ]
+    
+    for query, expected_substring in test_cases:
+        sql = llm.translate(query)
+        print(f"Query: {query}")
+        print(f"SQL: {sql}")
+        assert expected_substring in sql, f"Expected {expected_substring} in {sql}"
+        print("Test passed!\n")
+
+if __name__ == "__main__":
+    test_queries()
+```
+
+### Debugowanie wyjścia modelu
+
+Aby lepiej zrozumieć, co generuje model, dodaj tymczasowe debugowanie do pliku `smart_llm.py`:
+
+```python
+def translate(self, query: str, schema: Optional[str] = None) -> str:
+    # ... (istniejący kod)
+    
+    if self.use_advanced and self.model:
+        try:
+            outputs = self.model(prompt, max_length=200, temperature=0.1, do_sample=True)
+            sql_raw = outputs[0]["generated_text"].strip()
+            
+            # Dodaj debugowanie
+            print("\n--- RAW MODEL OUTPUT ---")
+            print(sql_raw)
+            print("------------------------\n")
+            
+            # Wyczyść i popraw wyjście
+            sql = self._clean_sql_output(sql_raw)
+            
+            # Dodaj debugowanie
+            print("--- CLEANED OUTPUT ---")
+            print(sql)
+            print("----------------------\n")
+            
+            # ... (reszta kodu)
+```
+
+## Przykłady zaawansowanych zapytań
+
+Z poprawną integracją TinyLLM, system Text2SQL powinien obsługiwać bardziej złożone zapytania:
+
+```
+text2sql> find all users who registered after January 2024
+text2sql> show products sorted by price from highest to lowest
+text2sql> create a new invoice for user 1 with product 2 quantity 3
+text2sql> calculate the average price of all products
+text2sql> find users who have made more than 5 purchases
+text2sql> update all products to increase price by 10%
+```
+
+## Dalszy rozwój
+
+### Dodawanie obsługi bardziej złożonych zapytań SQL
+
+W metodzie `_clean_sql_output` w `smart_llm.py`, możesz dodać obsługę bardziej złożonych zapytań SQL:
+
+```python
+def _clean_sql_output(self, sql_text: str) -> str:
+    # ... (istniejący kod)
+    
+    # Obsługa zapytań GROUP BY
+    if "GROUP BY" in sql_text.upper():
+        match = re.search(r"(SELECT [^;]+GROUP BY[^;]+)", sql_text, re.IGNORECASE)
+        if match:
+            sql_text = match.group(1)
+    
+    # Obsługa JOIN
+    if " JOIN " in sql_text.upper():
+        match = re.search(r"(SELECT [^;]+JOIN[^;]+)", sql_text, re.IGNORECASE)
+        if match:
+            sql_text = match.group(1)
+            
+    # ... (reszta kodu)
+```
+
+### Tworzenie własnego fine-tuned modelu
+
+Dla najlepszych wyników, możesz stworzyć własny fine-tuned model:
+
+1. Przygotuj dane treningowe w formacie:
+   ```json
+   {
+     "instruction": "Translate this query to SQL: show all users",
+     "input": "",
+     "output": "SELECT * FROM users;"
+   }
+   ```
+
+2. Użyj Hugging Face Transformers do fine-tuningu:
+   ```python
+   from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer
+
+   # Załaduj model bazowy
+   model = AutoModelForCausalLM.from_pretrained("t5-small")
+   tokenizer = AutoTokenizer.from_pretrained("t5-small")
+
+   # Przygotuj dane treningowe
+   # ...
+
+   # Fine-tuning
+   trainer = Trainer(
+       model=model,
+       train_dataset=train_dataset,
+       args=TrainingArguments(
+           output_dir="./text2sql-model",
+           per_device_train_batch_size=4,
+           num_train_epochs=3,
+           save_strategy="epoch",
+       )
+   )
+   trainer.train()
+
+   # Zapisz model
+   model.save_pretrained("./my-text2sql-model")
+   tokenizer.save_pretrained("./my-text2sql-model")
+   ```
+
+3. Użyj własnego modelu w SmartLLM:
+   ```python
+   llm = SmartLLM(model_name="./my-text2sql-model")
+   ```
+
+## Podsumowanie
+
+Integracja TinyLLM z Text2SQL pozwala na zaawansowane tłumaczenie zapytań z języka naturalnego na SQL. Dzięki poprawce wyjścia modelu, system może skutecznie obsługiwać różnorodne zapytania użytkownika.
+
+Postępując zgodnie z tą dokumentacją, powinieneś być w stanie:
+1. Zainstalować i skonfigurować niezbędne komponenty
+2. Uruchomić system z integracją TinyLLM
+3. Używać zaawansowanych zapytań w języku naturalnym
+4. Rozwiązywać potencjalne problemy
+5. Dostosować system do własnych potrzeb
+
+Jeśli masz problemy lub pytania, sprawdź sekcję [Rozwiązywanie problemów](#rozwiązywanie-problemów) lub skontaktuj się z twórcami projektu.
