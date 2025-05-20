@@ -1,0 +1,4 @@
+- stworz z fastapi dokumentacje openAI dla rest API
+- poukladaj dokumnetacje w llm/README.mddodaj strukture treee, ascii diagram i mermaid
+- zaktualizuj skrypt run.sh do instalacji wszystkiego i wystartowania w shell
+- dodaj testy do testowania shell

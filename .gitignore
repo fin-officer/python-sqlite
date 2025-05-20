@@ -1,5 +1,6 @@
 .idea
 venv
+.db
 .env
 text2sql.db
 # Byte-compiled / optimized / DLL files

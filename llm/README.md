@@ -653,6 +653,14 @@ text2sql> create a product named Laptop price 999.99 description "High performan
 text2sql> find user with name Jo
 text2sql> update product with id 1 set price to 899.99
 ```
+```
+create table employees with name and position and salary
+create a user named John with email john@example.com
+show all users
+create a product named Laptop price 999.99 description "High performance laptop"
+find user with name Jo
+update product with id 1 set price to 899.99
+```
 
 ### 3. Uruchamianie serwera SmartLLM API
 
