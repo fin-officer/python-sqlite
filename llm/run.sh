@@ -6,17 +6,24 @@ show_help() {
     echo "Text2SQL - Natural language to SQL translation tool"
     echo ""
     echo "Usage:"
-    echo "  ./run.sh [option]"
+    echo "  ./run.sh [option] [arguments]"
     echo ""
     echo "Options:"
-    echo "  shell       Run the interactive SQL shell with LLM integration"
-    echo "  api         Run the FastAPI REST server"
-    echo "  llm         Run the SmartLLM API server"
-    echo "  models      Run the model selector shell"
-    echo "  all         Run all components together"
-    echo "  install     Install all dependencies"
-    echo "  test        Run the test suite"
-    echo "  help        Display this help message"
+    echo "  shell                Run the interactive SQL shell with LLM integration"
+    echo "  api                  Run the FastAPI REST server"
+    echo "  llm                  Run the SmartLLM API server"
+    echo "  models               Run the model selector shell"
+    echo "  all                  Run all components together"
+    echo "  install              Install all dependencies"
+    echo "  install-model MODEL  Install a specific model (t5-small, gpt2, llama-cpp, all)"
+    echo "  test                 Run the test suite"
+    echo "  help                 Display this help message"
+    echo ""
+    echo "Environment Variables (can be set in .env file):"
+    echo "  DB_PATH              Path to the SQLite database file (default: smart_llm.db)"
+    echo "  MODEL_NAME           Name of the model to use (default: t5-small)"
+    echo "  USE_ADVANCED         Whether to use advanced features (default: true)"
+    echo "  DEBUG                Enable debug mode (default: false)"
     echo ""
 }
 
@@ -37,6 +44,48 @@ install_dependencies() {
     pip install -r requirements.txt
     
     echo "Dependencies installed successfully!"
+}
+
+# Function to install specific models
+install_model() {
+    model=$1
+    echo "Installing model: $model"
+    
+    # Activate virtual environment
+    if [ -d "venv" ] && [ -f "venv/bin/activate" ]; then
+        source venv/bin/activate
+    else
+        echo "Error: Virtual environment not found. Run './run.sh install' first."
+        exit 1
+    fi
+    
+    case "$model" in
+        t5-small)
+            pip install transformers sentencepiece
+            python -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; AutoTokenizer.from_pretrained('t5-small'); AutoModelForSeq2SeqLM.from_pretrained('t5-small')"
+            echo "T5-small model installed successfully!"
+            ;;
+        gpt2)
+            pip install transformers
+            python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; AutoTokenizer.from_pretrained('gpt2'); AutoModelForCausalLM.from_pretrained('gpt2')"
+            echo "GPT-2 model installed successfully!"
+            ;;
+        llama-cpp)
+            pip install llama-cpp-python --no-cache-dir
+            echo "llama-cpp installed successfully!"
+            ;;
+        all)
+            pip install transformers sentencepiece llama-cpp-python --no-cache-dir
+            python -c "from transformers import AutoTokenizer, AutoModelForSeq2SeqLM; AutoTokenizer.from_pretrained('t5-small'); AutoModelForSeq2SeqLM.from_pretrained('t5-small')"
+            python -c "from transformers import AutoTokenizer, AutoModelForCausalLM; AutoTokenizer.from_pretrained('gpt2'); AutoModelForCausalLM.from_pretrained('gpt2')"
+            echo "All models installed successfully!"
+            ;;
+        *)
+            echo "Unknown model: $model"
+            echo "Available models: t5-small, gpt2, llama-cpp, all"
+            exit 1
+            ;;
+    esac
 }
 
 # Function to create default database
@@ -63,89 +112,87 @@ if [ -d "venv" ] && [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
 fi
 
-# Funkcja do wyświetlania pomocy
-show_help() {
-    echo "Text2SQL Extended - Narzędzie do tłumaczenia języka naturalnego na SQL"
-    echo ""
-    echo "Użycie:"
-    echo "  ./run.sh [opcja]"
-    echo ""
-    echo "Opcje:"
-    echo "  shell       Uruchamia rozszerzony interaktywny shell"
-    echo "  api         Uruchamia rozszerzony serwer API REST"
-    echo "  llm         Uruchamia serwer SmartLLM API"
-    echo "  all         Uruchamia wszystkie komponenty razem"
-    echo "  help        Wyświetla tę pomoc"
-    echo ""
-}
-
-# Aktywacja wirtualnego środowiska, jeśli istnieje
-if [ -d "venv" ] && [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
-fi
-
-# Sprawdź, czy pakiet transformers jest zainstalowany
-check_transformers() {
-    if python3 -c "import transformers" &>/dev/null; then
-        return 0  # Zainstalowany
-    else
-        return 1  # Nie zainstalowany
-    fi
-}
-
-# Obsługa argumentów
+# Command line argument handling
 case "$1" in
     shell)
-        echo "Uruchamianie rozszerzonego interaktywnego shella..."
-        python3 cli_client.py
+        echo "Starting interactive SQL shell..."
+        create_database
+        python -m llm.shell
         ;;
     api)
-        echo "Uruchamianie rozszerzonego serwera API REST..."
-        python3 rest_api.py
-        ;;
-    llm)
-        echo "Uruchamianie serwera SmartLLM API..."
-        if check_transformers; then
-            python3 smart_llm.py --server
-        else
-            echo "Błąd: Pakiet transformers nie jest zainstalowany."
-            echo "Zainstaluj go używając: pip install transformers"
+        echo "Starting FastAPI REST server..."
+        if ! check_package "fastapi"; then
+            echo "Error: fastapi package is not installed."
+            echo "Run './run.sh install' first."
             exit 1
         fi
+        uvicorn llm.api:app --reload
+        ;;
+    llm)
+        echo "Starting SmartLLM API server..."
+        if ! check_package "transformers"; then
+            echo "Error: transformers package is not installed."
+            echo "Run './run.sh install' first."
+            exit 1
+        fi
+        python -m llm.smart_llm --server
+        ;;
+    models)
+        echo "Starting model selector shell..."
+        python -c "from llm.model_selector import ModelRegistry; print('Available models:\n' + '\n'.join([f\"- {name}: {info['description']}\" for name, info in ModelRegistry.list_models().items()]))"
         ;;
     all)
-        echo "Uruchamianie wszystkich komponentów..."
-
-        # Uruchamianie SmartLLM w tle (jeśli zainstalowany)
-        if check_transformers; then
-            echo "Uruchamianie serwera SmartLLM API..."
-            python3 smart_llm.py --server --port 8080 &
+        echo "Starting all components..."
+        
+        # Start SmartLLM in the background (if installed)
+        if check_package "transformers"; then
+            echo "Starting SmartLLM API server..."
+            python -m llm.smart_llm --server --port 8080 &
             llm_pid=$!
-            sleep 3  # Daj czas na uruchomienie
+            sleep 3  # Give it time to start
         else
-            echo "UWAGA: Pakiet transformers nie jest zainstalowany. Tryb SmartLLM będzie ograniczony."
+            echo "WARNING: transformers package is not installed. SmartLLM mode will be limited."
             llm_pid=""
         fi
-
-        # Uruchamianie API REST w tle
-        echo "Uruchamianie rozszerzonego serwera API REST..."
-        python3 rest_api.py --port 8000 &
-        api_pid=$!
-
-        # Uruchamianie shella w pierwszym planie
-        echo "Uruchamianie rozszerzonego interaktywnego shella..."
-        python3 cli_client.py --llm-url http://localhost:8080
-
-        # Zatrzymywanie procesów uruchomionych w tle
+        
+        # Start FastAPI server in the background
+        if check_package "fastapi"; then
+            echo "Starting FastAPI REST server..."
+            uvicorn llm.api:app --port 8000 &
+            api_pid=$!
+            sleep 2  # Give it time to start
+        else
+            echo "WARNING: fastapi package is not installed. API server will not be available."
+            api_pid=""
+        fi
+        
+        # Start shell in the foreground
+        echo "Starting interactive SQL shell..."
+        create_database
+        python -m llm.shell
+        
+        # Stop background processes when shell exits
         if [ -n "$api_pid" ]; then
-            echo "Zatrzymywanie serwera API..."
+            echo "Stopping API server..."
             kill $api_pid 2>/dev/null || true
         fi
-
+        
         if [ -n "$llm_pid" ]; then
-            echo "Zatrzymywanie serwera SmartLLM..."
+            echo "Stopping SmartLLM server..."
             kill $llm_pid 2>/dev/null || true
         fi
+        ;;
+    install)
+        install_dependencies
+        ;;
+    test)
+        echo "Running test suite..."
+        if ! check_package "pytest"; then
+            echo "Error: pytest package is not installed."
+            echo "Run './run.sh install' first."
+            exit 1
+        fi
+        python -m pytest tests/
         ;;
     help|*)
         show_help
